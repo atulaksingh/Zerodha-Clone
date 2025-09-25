@@ -33,68 +33,6 @@ app.get("/", (req, res) => {
   res.send("Hello World");
 });
 
-app.get("/allHoldings", async (req, res) => {
-  try {
-    const holdings = await HoldingsModel.find({});
-    res.json(holdings);
-  } catch (err) {
-    res.status(500).json({ error: err });
-  }
-});
-
-app.get("/allPositions", async (req, res) => {
-  try {
-    const positions = await PositionsModel.find({});
-    res.json(positions);
-  } catch (err) {
-    res.status(500).json({ error: err });
-  }
-});
-
-app.post("/newOrder", async (req, res) => {
-  const { name, qty, price, mode } = req.body;
-  console.log(req.body, "new order");
-
-  try {
-    let holding = await HoldingsModel.findOne({ name });
-
-    if (mode === "SELL") {
-      if (!holding || holding.qty < qty) {
-        return res.status(400).json({
-          message: "Insufficient quantity available to SELL",
-        });
-      }
-
-      // SELL: reduce holdings
-      holding.qty -= qty;
-      await holding.save();
-    } else if (mode === "BUY") {
-      if (!holding) {
-        holding = new HoldingsModel({ name, qty });
-      } else {
-        holding.qty += qty;
-      }
-      await holding.save();
-    }
-
-    const newOrder = new OrdersModel({
-      name,
-      qty,
-      price,
-      mode,
-    });
-    await newOrder.save();
-
-    res.status(201).json({
-      message: "Order placed successfully",
-      order: newOrder,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -138,10 +76,95 @@ app.post("/login", async (req, res) => {
     res.json({
       message: "Login successful",
       token,
-      user: userData,   
+      user: userData,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/me", authMiddleware, async (req, res) => {
+  try {
+    const user = await UserModel.findById(req.user.id).select("-password");
+    // console.log(user, "user in /me", req.user);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/allHoldings", async (req, res) => {
+  try {
+    const holdings = await HoldingsModel.find({});
+    res.json(holdings);
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
+
+app.get("/allPositions", async (req, res) => {
+  try {
+    const positions = await PositionsModel.find({});
+    res.json(positions);
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
+
+// Get all orders
+app.get("/allOrders", async (req, res) => {
+  try {
+    const orders = await OrdersModel.find({});
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+app.post("/newOrder", async (req, res) => {
+  const { name, qty, price, mode } = req.body;
+  console.log(req.body, "new order");
+
+  try {
+    let holding = await HoldingsModel.findOne({ name });
+
+    if (mode === "SELL") {
+      if (!holding || holding.qty < qty) {
+        return res.status(400).json({
+          message: "Insufficient quantity available to SELL",
+        });
+      }
+
+      // SELL: reduce holdings
+      holding.qty -= qty;
+      await holding.save();
+    } else if (mode === "BUY") {
+      if (!holding) {
+        holding = new HoldingsModel({ name, qty });
+      } else {
+        holding.qty += qty;
+      }
+      await holding.save();
+    }
+
+    const newOrder = new OrdersModel({
+      name,
+      qty,
+      price,
+      mode,
+    });
+    await newOrder.save();
+
+    res.status(201).json({
+      message: "Order placed successfully",
+      order: newOrder,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
